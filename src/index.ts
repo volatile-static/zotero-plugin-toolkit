@@ -1,78 +1,58 @@
-import { BasicTool, unregister } from "./basic";
-import { UITool } from "./tools/ui";
-import { ReaderTool } from "./tools/reader";
-import { ExtraFieldTool } from "./tools/extraField";
-import { ItemTreeManager } from "./managers/itemTree";
-import { PromptManager } from "./managers/prompt";
-import { LibraryTabPanelManager } from "./managers/libraryTabPanel";
-import { ReaderTabPanelManager } from "./managers/readerTabPanel";
-import { MenuManager } from "./managers/menu";
-import { PreferencePaneManager } from "./managers/preferencePane";
-import { ShortcutManager } from "./managers/shortcut";
-import { ClipboardHelper } from "./helpers/clipboard";
-import { FilePickerHelper } from "./helpers/filePicker";
-import { ProgressWindowHelper } from "./helpers/progressWindow";
-import { VirtualizedTableHelper } from "./helpers/virtualizedTable";
-import { DialogHelper } from "./helpers/dialog";
-import { ReaderInstanceManager } from "./managers/readerInstance";
-import { FieldHookManager } from "./managers/fieldHook";
-import { ItemBoxManager } from "./managers/itemBox";
+import {
+  ReadingHistoryGlobal,
+  RecordingOptions,
+  SavingHook,
+  RecordCache,
+} from "./singleton";
 
-/**
- * ⭐Contains all tools in this lib. Start from here if you are new to this lib.
- * @remarks
- * To minimize your plugin, import the modules you need manually.
- */
-class ZoteroToolkit extends BasicTool {
-  UI: UITool;
-  Reader: ReaderTool;
-  ExtraField: ExtraFieldTool;
-  FieldHooks: FieldHookManager;
-  ItemTree: ItemTreeManager;
-  ItemBox: ItemBoxManager;
-  Prompt: PromptManager;
-  LibraryTabPanel: LibraryTabPanelManager;
-  ReaderTabPanel: ReaderTabPanelManager;
-  ReaderInstance: ReaderInstanceManager;
-  Menu: MenuManager;
-  PreferencePane: PreferencePaneManager;
-  Shortcut: ShortcutManager;
-  Clipboard: typeof ClipboardHelper;
-  FilePicker: typeof FilePickerHelper;
-  ProgressWindow: typeof ProgressWindowHelper;
-  VirtualizedTable: typeof VirtualizedTableHelper;
-  Dialog: typeof DialogHelper;
+export type AttachmentHistory = Readonly<RecordCache>;
 
-  constructor() {
-    super();
-    this.UI = new UITool(this);
-    this.Reader = new ReaderTool(this);
-    this.ExtraField = new ExtraFieldTool(this);
-    this.FieldHooks = new FieldHookManager(this);
-    this.ItemTree = new ItemTreeManager(this);
-    this.ItemBox = new ItemBoxManager(this);
-    this.Prompt = new PromptManager(this);
-    this.LibraryTabPanel = new LibraryTabPanelManager(this);
-    this.ReaderTabPanel = new ReaderTabPanelManager(this);
-    this.ReaderInstance = new ReaderInstanceManager(this);
-    this.Menu = new MenuManager(this);
-    this.PreferencePane = new PreferencePaneManager(this);
-    this.Shortcut = new ShortcutManager(this);
-    this.Clipboard = ClipboardHelper;
-    this.FilePicker = FilePickerHelper;
-    this.ProgressWindow = ProgressWindowHelper;
-    this.VirtualizedTable = VirtualizedTableHelper;
-    this.Dialog = DialogHelper;
+export default class ReadingHistory {
+  protected readonly recorder: ReadingHistoryGlobal;
+  private readonly options: RecordingOptions;
+  private readonly hook?: SavingHook;
+  readonly clearAll;
+
+  constructor(options: RecordingOptions = {}, hook?: SavingHook) {
+    this.recorder = ReadingHistoryGlobal.getInstance();
+    this.recorder.addOption((this.options = options));
+    this.clearAll = this.recorder.clearHistory;
+    this.hook = hook;
+    hook && this.recorder.cachedHooks.add(hook);
   }
 
-  /**
-   * Unregister everything created by managers.
-   */
-  unregisterAll(): void {
-    unregister(this);
+  disable() {
+    this.recorder.removeOption(this.options);
+    this.hook && this.recorder.cachedHooks.delete(this.hook);
+  }
+
+  getByAttachment(att: Zotero.Item | number): AttachmentHistory | null {
+    return this.recorder.cached[typeof att == "number" ? att : att.id];
+  }
+
+  async getInTopLevel(item: Zotero.Item) {
+    const result = [];
+    for (const att of await item.getBestAttachments()) {
+      const cache = this.recorder.cached[att.id];
+      cache && result.push(cache);
+    }
+    return result;
+  }
+
+  getInCollection(collection: Zotero.Collection) {
+    return collection
+      .getChildItems()
+      .filter((it) => it.isRegularItem())
+      .map((it) => this.getInTopLevel(it));
+  }
+
+  getInLibrary(libraryID: number = 1) {
+    return this.recorder.cached.filter(
+      (c) => c?.note.libraryID == libraryID
+    ) as AttachmentHistory[];
+  }
+
+  getAll() {
+    return this.recorder.cached;
   }
 }
-
-export default ZoteroToolkit;
-
-export { ZoteroToolkit };

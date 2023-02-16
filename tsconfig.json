@@ -9,7 +9,11 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
+    "resolveJsonModule":true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "typing", "node_modules/zotero-types"]
+  "include": [
+    "src/*.ts",
+    "node_modules/zotero-types",
+  ]
 }
