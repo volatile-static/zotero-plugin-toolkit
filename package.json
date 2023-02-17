@@ -6,15 +6,9 @@
     "extraFieldKey": "ReadingHistory",
     "globalInstance": "_readingHistoryGlobal"
   },
-  "scripts": {},
-  "repository": "github:volatile-static/zotero-plugin-toolkit",
+  "repository": "github:volatile-static/zotero-reading-history",
   "dependencies": {
-    "zotero-plugin-toolkit": "^2.0.3"
+    "zotero-plugin-toolkit": "^2.0.5"
   },
-  "files": [
-    "src/*.ts"
-  ],
-  "devDependencies": {
-    "release-it": "^15.6.0"
-  }
+  "files": ["src/*.ts"]
 }
