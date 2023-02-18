@@ -4,6 +4,7 @@ import {
   SavingHook,
   RecordCache,
 } from "./singleton";
+import { BasicTool } from "zotero-plugin-toolkit/dist/basic";
 
 export type AttachmentHistory = Readonly<RecordCache>;
 
@@ -30,13 +31,34 @@ export default class ReadingHistory {
     return this.recorder.cached[typeof att == "number" ? att : att.id];
   }
 
+  /**
+   *  @file chrome\content\zotero\xpcom\data\item.js
+   *  @see Zotero.Item.getBestAttachments
+   */
   async getInTopLevel(item: Zotero.Item) {
-    const result = [];
-    for (const att of await item.getBestAttachments()) {
-      const cache = this.recorder.cached[att.id];
-      cache && result.push(cache);
-    }
-    return result;
+    if (!item.isRegularItem()) return [];
+    await item.loadDataType("itemData");
+    const zotero = BasicTool.getZotero(),
+      url = item.getField("url"),
+      urlFieldID = zotero.ItemFields.getID("url"),
+      sql =
+        "SELECT IA.itemID FROM itemAttachments IA NATURAL JOIN items I " +
+        `LEFT JOIN itemData ID ON (IA.itemID=ID.itemID AND fieldID=${urlFieldID}) ` +
+        "LEFT JOIN itemDataValues IDV ON (ID.valueID=IDV.valueID) " +
+        `WHERE parentItemID=? AND linkMode NOT IN (${zotero.Attachments.LINK_MODE_LINKED_URL}) ` +
+        "AND IA.itemID NOT IN (SELECT itemID FROM deletedItems) " +
+        "ORDER BY contentType='application/pdf' DESC, value=? DESC, dateAdded ASC",
+      itemIDs: number[] = await Zotero.DB.columnQueryAsync(sql, [item.id, url]);
+    return itemIDs
+      .map((id) => this.getByAttachment(id))
+      .filter((his) => his) as AttachmentHistory[];
+  }
+
+  getInTopLevelSync(item: Zotero.Item) {
+    return item
+      .getAttachments()
+      .map((id) => this.getByAttachment(id))
+      .filter((his) => his) as AttachmentHistory[];
   }
 
   getInCollection(collection: Zotero.Collection) {
