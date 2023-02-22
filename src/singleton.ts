@@ -31,6 +31,13 @@ export class ReadingHistoryGlobal {
 
   private _toolkit: PromptManager;
   private _scanPeriod: number;
+  private _readerState: {
+    firstIdx: number;
+    firstTop: number;
+    secondIdx: number;
+    secondTop: number;
+    counter: number;
+  };
 
   /**
    * @private 单例模式下不能直接使用构造函数
@@ -46,6 +53,14 @@ export class ReadingHistoryGlobal {
       groupUser: 0,
       numPages: 0,
     };
+    this._readerState = {
+      firstIdx: 0,
+      firstTop: 0,
+      secondIdx: 0,
+      secondTop: 0,
+      counter: 0,
+    };
+
     // 监听条目更改事件，主要用于保护数据
     this.zotero.Notifier.registerObserver(
       {
@@ -363,8 +378,27 @@ export class ReadingHistoryGlobal {
           }
         }
       },
-      firstPage = this._activeReader!.state?.pageIndex,
-      secondPage = this._activeReader!.getSecondViewState()?.pageIndex;
+      firstState = this._activeReader!.state,
+      firstPage = firstState?.pageIndex,
+      secondState = this._activeReader!.getSecondViewState(),
+      secondPage = secondState?.pageIndex;
+
+    if (
+      this._readerState.firstIdx == firstPage &&
+      this._readerState.secondIdx == secondPage &&
+      this._readerState.firstTop == firstState?.top &&
+      this._readerState.secondTop == secondState?.top
+    ) {
+      if (this._readerState.counter > 20) return;  // TODO: 用户自定义
+      else ++this._readerState.counter;
+    }
+    this._readerState = {
+      firstIdx: firstPage,
+      secondIdx: secondPage ?? 0,
+      firstTop: firstState?.top,
+      secondTop: secondState?.top ?? 0,
+      counter: 0,
+    };
 
     firstPage && recordPage(firstPage);
     if (secondPage && secondPage != firstPage) recordPage(secondPage);
