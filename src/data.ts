@@ -37,12 +37,15 @@ export class PageRecord implements RecordBase {
       (this.totalSeconds = (this.totalSeconds ?? 0) + json.t);
     typeof json.s == "number" &&
       (this.selectText = (this.selectText ?? 0) + json.s);
+    typeof json.u == "object" &&
+      (this.userSeconds = { ...this.userSeconds ?? {}, ...json.u });
   }
   toJSON() {
     return {
       t: this.totalSeconds,
       s: this.selectText,
       p: this.period,
+      u: this.userSeconds,
     };
   }
 

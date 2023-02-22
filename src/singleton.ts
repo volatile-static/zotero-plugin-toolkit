@@ -98,7 +98,7 @@ export class ReadingHistoryGlobal {
     this._toolkit = new PromptManager();
     this._toolkit.basicOptions.log.disableConsole = true;
     this._toolkit.basicOptions.log.disableZLog = true;
-    
+
     this._toolkit.patch(
       this.zotero.Search.prototype,
       "search",
@@ -146,8 +146,8 @@ export class ReadingHistoryGlobal {
   }
 
   private loadAll(): void {
-    this.zotero.Libraries.getAll().forEach(async (lib) => {
-      const mainItem = await this.getMainItem(lib.id);
+    const loadLib = async (libID: number) => {
+      const mainItem = await this.getMainItem(libID);
       await mainItem.loadDataType("childItems"); // 等待主条目数据库加载子条目
       mainItem.getNotes().forEach(async (noteID) => {
         const noteItem = (await this.zotero.Items.getAsync(
@@ -157,11 +157,17 @@ export class ReadingHistoryGlobal {
         const his = this.parseNote(noteItem);
         if (his) {
           // 缓存解析出的记录
-          const id = this.zotero.Items.getIDFromLibraryAndKey(lib.id, his.key);
+          const id = this.zotero.Items.getIDFromLibraryAndKey(libID, his.key);
           id && (this._cached[id] = { note: noteItem, ...his });
         }
       });
-    });
+    };
+    loadLib(1);
+    this.zotero.Groups.getAll()
+      .map((group: Zotero.DataObject) =>
+        this.zotero.Groups.getLibraryIDFromGroupID(group.id)
+      )
+      .forEach(loadLib);
   }
 
   private get zotero(): _ZoteroTypes.Zotero {
