@@ -210,6 +210,7 @@ export class ReadingHistoryGlobal {
    */
   private async newNoteItem(attachment: Zotero.Item): Promise<Zotero.Item> {
     const item = new this.zotero.Item("note");
+    item.libraryID = attachment.libraryID;
     item.parentID = (await this.getMainItem(attachment.libraryID)).id; // 若强制删除则成为独立笔记
     item.setNote(`${packageName}#${attachment.key}\n{}`);
     item.addRelatedItem(attachment);
