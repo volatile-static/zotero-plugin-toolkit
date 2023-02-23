@@ -31,13 +31,8 @@ export class ReadingHistoryGlobal {
 
   private _toolkit: PromptManager;
   private _scanPeriod: number;
-  private _readerState: {
-    firstIdx: number;
-    firstTop: number;
-    secondIdx: number;
-    secondTop: number;
-    counter: number;
-  };
+  private _firstState: ReaderState;
+  private _secondState: ReaderState;
 
   /**
    * @private 单例模式下不能直接使用构造函数
@@ -53,12 +48,17 @@ export class ReadingHistoryGlobal {
       groupUser: 0,
       numPages: 0,
     };
-    this._readerState = {
-      firstIdx: 0,
-      firstTop: 0,
-      secondIdx: 0,
-      secondTop: 0,
+    this._firstState = {
       counter: 0,
+      pageIndex: 0,
+      left: 0,
+      top: 0,
+    };
+    this._secondState = {
+      counter: 0,
+      pageIndex: 0,
+      left: 0,
+      top: 0,
     };
 
     // 监听条目更改事件，主要用于保护数据
@@ -348,13 +348,14 @@ export class ReadingHistoryGlobal {
    * @returns 与参数一样
    */
   private record(history: AttachmentRecord) {
-    const recordPage = (idx: number) => {
+    const win = this._activeReader!._iframeWindow,
+      recordPage = (idx: number) => {
         const pageHis = (history.pages[idx] ??= new PageRecord());
 
         if (this.recordingOptions.numPages)
           history.numPages ??= (
-            this._activeReader!._iframeWindow as any
-          ).wrappedJSObject.PDFViewerApplication.pdfDocument.numPages;
+            win as any
+          ).wrappedJSObject.PDFViewerApplication.pagesCount;
 
         if (this.recordingOptions.pageTotal)
           pageHis.totalSeconds =
@@ -378,30 +379,75 @@ export class ReadingHistoryGlobal {
           }
         }
       },
-      firstState = this._activeReader!.state,
-      firstPage = firstState?.pageIndex,
-      secondState = this._activeReader!.getSecondViewState(),
-      secondPage = secondState?.pageIndex;
+      checkState = (
+        thisState: ReaderState,
+        thatState?:
+          | _ZoteroTypes.Reader.State
+          | _ZoteroTypes.Reader.SecondViewState
+      ) => {
+        if (typeof thatState == "undefined") return false;
 
+        if (
+          thisState.pageIndex == thatState.pageIndex &&
+          thisState.top == thatState.top &&
+          thatState.left == thatState.left
+        )
+          ++thisState.counter;
+        else {
+          thisState.pageIndex = thatState.pageIndex;
+          thisState.top = thatState.top;
+          thisState.left = thatState.left;
+          thisState.counter = 0;
+        }
+        return thisState.counter < 20; //  TODO: 用户自定义
+      };
+
+    //  先检查副屏
     if (
-      this._readerState.firstIdx == firstPage &&
-      this._readerState.secondIdx == secondPage &&
-      this._readerState.firstTop == firstState?.top &&
-      this._readerState.secondTop == secondState?.top
+      checkState(this._secondState, this._activeReader!.getSecondViewState())
     ) {
-      if (this._readerState.counter > 20) return;  // TODO: 用户自定义
-      else ++this._readerState.counter;
+      const secondView = win?.document.getElementById(
+          "secondViewIframe"
+        ) as HTMLIFrameElement,
+        secondWindow: null | any = secondView?.contentWindow;
+      if (secondWindow)
+        recordPage(secondWindow.wrappedJSObject.PDFViewerApplication.page);
     }
-    this._readerState = {
-      firstIdx: firstPage,
-      secondIdx: secondPage ?? 0,
-      firstTop: firstState?.top,
-      secondTop: secondState?.top ?? 0,
-      counter: 0,
-    };
+    //  再检查主屏
+    if (checkState(this._firstState, this._activeReader!.state))
+      recordPage((win as any).wrappedJSObject.PDFViewerApplication.page);
 
-    firstPage && recordPage(firstPage);
-    if (secondPage && secondPage != firstPage) recordPage(secondPage);
+    // window.console.debug(this._firstState, this._secondState);
+    // firstState = this._activeReader!.state,
+    // secondState = this._activeReader!.getSecondViewState(),
+    // secondView =
+    //   secondState &&
+    //   (win?.document.getElementById("secondViewIframe") as HTMLIFrameElement),
+    // secondWindow: null | any = secondView?.contentWindow,
+    // secondPage: number | undefined =
+    //   secondWindow?.wrappedJSObject.PDFViewerApplication.page,
+    // firstPage: number | undefined = (win as any).wrappedJSObject
+    //   .PDFViewerApplication.page;
+
+    // if (
+    //   this._readerState.firstIdx == firstState?.pageIndex &&
+    //   this._readerState.secondIdx == secondState?.pageIndex &&
+    //   this._readerState.firstTop == firstState?.top &&
+    //   this._readerState.secondTop == secondState?.top
+    // ) {
+    //   if (this._readerState.counter > 20) return; // TODO: 用户自定义
+    //   else ++this._readerState.counter;
+    // }
+    // this._readerState = {
+    //   firstIdx: firstPage ?? 0,
+    //   secondIdx: secondPage ?? 0,
+    //   firstTop: firstState?.top ?? 0,
+    //   secondTop: secondState?.top ?? 0,
+    //   counter: 0,
+    // };
+
+    // firstPage && recordPage(firstPage);
+    // if (secondPage && secondPage != firstPage) recordPage(secondPage);
   }
 
   /**
@@ -495,4 +541,11 @@ interface HistoryAtt {
 
 export interface RecordCache extends HistoryAtt {
   note: Zotero.Item;
+}
+
+interface ReaderState {
+  pageIndex: number;
+  top: number;
+  left: number;
+  counter: number;
 }
