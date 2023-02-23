@@ -350,7 +350,7 @@ export class ReadingHistoryGlobal {
   private record(history: AttachmentRecord) {
     const win = this._activeReader!._iframeWindow,
       recordPage = (idx: number) => {
-        const pageHis = (history.pages[idx] ??= new PageRecord());
+        const pageHis = (history.pages[idx - 1] ??= new PageRecord());
 
         if (this.recordingOptions.numPages)
           history.numPages ??= (
@@ -416,38 +416,6 @@ export class ReadingHistoryGlobal {
     //  再检查主屏
     if (checkState(this._firstState, this._activeReader!.state))
       recordPage((win as any).wrappedJSObject.PDFViewerApplication.page);
-
-    // window.console.debug(this._firstState, this._secondState);
-    // firstState = this._activeReader!.state,
-    // secondState = this._activeReader!.getSecondViewState(),
-    // secondView =
-    //   secondState &&
-    //   (win?.document.getElementById("secondViewIframe") as HTMLIFrameElement),
-    // secondWindow: null | any = secondView?.contentWindow,
-    // secondPage: number | undefined =
-    //   secondWindow?.wrappedJSObject.PDFViewerApplication.page,
-    // firstPage: number | undefined = (win as any).wrappedJSObject
-    //   .PDFViewerApplication.page;
-
-    // if (
-    //   this._readerState.firstIdx == firstState?.pageIndex &&
-    //   this._readerState.secondIdx == secondState?.pageIndex &&
-    //   this._readerState.firstTop == firstState?.top &&
-    //   this._readerState.secondTop == secondState?.top
-    // ) {
-    //   if (this._readerState.counter > 20) return; // TODO: 用户自定义
-    //   else ++this._readerState.counter;
-    // }
-    // this._readerState = {
-    //   firstIdx: firstPage ?? 0,
-    //   secondIdx: secondPage ?? 0,
-    //   firstTop: firstState?.top ?? 0,
-    //   secondTop: secondState?.top ?? 0,
-    //   counter: 0,
-    // };
-
-    // firstPage && recordPage(firstPage);
-    // if (secondPage && secondPage != firstPage) recordPage(secondPage);
   }
 
   /**
