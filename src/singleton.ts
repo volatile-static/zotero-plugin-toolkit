@@ -147,7 +147,7 @@ export class ReadingHistoryGlobal {
         }
     );
     this._prefs = new Prefs(this._toolkit);
-    
+
     // 初始化定时器回调函数
     this.zotero
       .getMainWindow()
@@ -420,6 +420,37 @@ export class ReadingHistoryGlobal {
     //  再检查主屏
     if (checkState(this._firstState, this._activeReader!.state))
       recordPage((win as any).wrappedJSObject.PDFViewerApplication.page);
+  }
+
+  private compress(record: AttachmentRecord) {
+    record.pageArr.forEach((page) => {
+      if (!page.period) return;
+      let start = 0, // 开始合并的时间戳
+        total = 0, // 连续时长
+        processing = false, // 是否正在合并
+        compressed: { [timestamp: number]: number } = {}; // 压缩后的period
+
+      Object.keys(page.period)
+        .map((t) => parseInt(t))
+        .filter((t) => !isNaN(t))
+        .forEach((t) => {
+          if (t - start == total) {
+            // 相连的时间戳合并
+            total += page.period![t];
+            processing = true;
+          } else {
+            if (processing) {
+              // 结束合并
+              processing = false;
+              compressed[start] = total;
+            }
+            start = t;
+            total = page.period![t];
+          }
+        });
+      compressed[start] = total; // 保存最后一个连续的时间戳
+      page.period = compressed;
+    });
   }
 
   /**
