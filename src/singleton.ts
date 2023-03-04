@@ -2,6 +2,7 @@ import { PromptManager } from "zotero-plugin-toolkit/dist/managers/prompt";
 import { BasicTool } from "zotero-plugin-toolkit/dist/basic";
 import { config, name as packageName } from "../package.json";
 import { AttachmentRecord, PageRecord } from "./data";
+import Prefs from "./prefs";
 import localeString from "./locale";
 
 /**
@@ -30,6 +31,7 @@ export class ReadingHistoryGlobal {
   readonly cachedHooks: Set<SavingHook>;
 
   private _toolkit: PromptManager;
+  private _prefs: Prefs;
   private _scanPeriod: number;
   private _firstState: ReaderState;
   private _secondState: ReaderState;
@@ -144,6 +146,8 @@ export class ReadingHistoryGlobal {
           } else return ids;
         }
     );
+    this._prefs = new Prefs(this._toolkit);
+    
     // 初始化定时器回调函数
     this.zotero
       .getMainWindow()

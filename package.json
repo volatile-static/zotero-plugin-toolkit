@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "main": "src/index.ts",
   "config": {
-    "extraFieldKey": "ReadingHistory",
+    "preferenceKey": "ReadingHistory",
     "globalInstance": "_readingHistoryGlobal"
   },
   "repository": "github:volatile-static/zotero-reading-history",
